@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minigolf Game - Phase 1</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #000;
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            max-width: 300px;
+        }
+
+        #ui-overlay h3 {
+            margin: 0 0 10px 0;
+            color: #4CAF50;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 100;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 12px;
+            max-width: 250px;
+        }
+
+        #controls h4 {
+            margin: 0 0 8px 0;
+            color: #FFD700;
+        }
+
+        .control-item {
+            margin: 3px 0;
+        }
+
+        .key {
+            background-color: #333;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="ui-overlay">
+            <h3>🎮 Minigolf Game - Phase 1</h3>
+            <div id="game-info">
+                <div>Status: <span id="status">Initializing...</span></div>
+                <div>Current Level: <span id="current-level">-</span></div>
+                <div>Level Name: <span id="level-name">-</span></div>
+                <div>Par: <span id="par">-</span></div>
+                <div>Strokes: <span id="strokes">0</span></div>
+            </div>
+        </div>
+
+        <div id="controls">
+            <h4>🎯 Test Controls</h4>
+            <div class="control-item"><span class="key">1</span> Load Level 1</div>
+            <div class="control-item"><span class="key">2</span> Load Level 2</div>
+            <div class="control-item"><span class="key">N</span> Next Level</div>
+            <div class="control-item"><span class="key">P</span> Previous Level</div>
+            <div class="control-item"><span class="key">R</span> Reset Game</div>
+            <div class="control-item"><span class="key">I</span> Show Info</div>
+        </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+
+    <script>
+        // Simple UI update function that can be called from the game
+        window.updateGameUI = function(gameState, levelInfo) {
+            document.getElementById('status').textContent = 'Running';
+            document.getElementById('current-level').textContent = gameState.currentLevel || '-';
+            document.getElementById('level-name').textContent = levelInfo?.name || '-';
+            document.getElementById('par').textContent = levelInfo?.par || '-';
+            document.getElementById('strokes').textContent = gameState.strokeCount || 0;
+        };
+
+        // Log initial message
+        console.log('🎮 Minigolf Game - Phase 1 Starting...');
+        console.log('📝 This phase demonstrates the basic level system');
+        console.log('🔧 Use the keyboard controls to test level switching');
+    </script>
+</body>
+</html>
