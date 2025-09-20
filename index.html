@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minigolf Game - Phase 1</title>
+    <title>Minigolf Game</title>
     <style>
+        /* Base styles */
         body {
             margin: 0;
             padding: 0;
@@ -13,6 +14,53 @@
             background-color: #000;
         }
 
+        /* The welcome screen UI */
+        #welcome-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            text-align: center;
+        }
+
+        #welcome-screen h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+            color: #4CAF50;
+        }
+
+        /* Styling for the level selection buttons */
+        .level-button {
+            background-color: #333;
+            color: white;
+            border: 2px solid #4CAF50;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin: 10px;
+            border-radius: 8px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .level-button:hover {
+            background-color: #4CAF50;
+            transform: scale(1.05);
+        }
+
+        /* The class used to hide elements */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Game UI */
         #game-container {
             width: 100vw;
             height: 100vh;
@@ -60,7 +108,7 @@
         }
 
         .key {
-            background-color: #333;
+            background-color: #444;
             color: white;
             padding: 2px 6px;
             border-radius: 3px;
@@ -70,7 +118,14 @@
     </style>
 </head>
 <body>
-    <div id="game-container">
+    <div id="welcome-screen">
+        <h1>Welcome to the Mini Golf Game</h1>
+        <div>
+            <button id="start-game-btn" class="level-button">Start Game</button>
+        </div>
+    </div>
+
+    <div id="game-container" class="hidden">
         <div id="ui-overlay">
             <h3>🎮 Minigolf Game - Phase 1</h3>
             <div id="game-info">
@@ -96,6 +151,22 @@
     <script type="module" src="/src/main.ts"></script>
 
     <script>
+        // Get references to the HTML elements
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const gameContainer = document.getElementById('game-container');
+        const startGameBtn = document.getElementById('start-game-btn');
+
+        // This function hides the welcome screen and shows the game container
+        function startGame() {
+            welcomeScreen.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+            // Assuming window.loadLevel(1) is handled in main.ts
+            // You can add it here if needed: window.loadLevel(1);
+        }
+
+        // Attach a click event to the "Start Game" button
+        startGameBtn.addEventListener('click', startGame);
+
         // Simple UI update function that can be called from the game
         window.updateGameUI = function(gameState, levelInfo) {
             document.getElementById('status').textContent = 'Running';
@@ -106,9 +177,7 @@
         };
 
         // Log initial message
-        console.log('🎮 Minigolf Game - Phase 1 Starting...');
-        console.log('📝 This phase demonstrates the basic level system');
-        console.log('🔧 Use the keyboard controls to test level switching');
+        console.log('🎮 Minigolf Game - Starting...');
     </script>
 </body>
 </html>
