@@ -18,6 +18,8 @@ Demo Video: https://youtu.be/xsGOBBrNPMM
     docker compose up -d
     ```
 
+3. Open the site at `http://localhost:8243`
+
 ### With Node
 
 1. Clone the repository with:
@@ -37,6 +39,8 @@ Demo Video: https://youtu.be/xsGOBBrNPMM
     ```bash
     npm run serve
     ```
+
+4. Open the site at `http://localhost:8243`
 
 ## Gameplay Instructions
 
