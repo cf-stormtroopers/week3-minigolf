@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 import { Level } from './Level';
 import { Level1 } from './Level1';
 import { Level2 } from './Level2';
@@ -12,12 +13,14 @@ export interface GameState {
 
 export class LevelManager {
   private scene: THREE.Scene;
+  private world: CANNON.World;
   private levels: Map<number, Level>;
   private currentLevel: Level | null = null;
   private gameState: GameState;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, world: CANNON.World) {
     this.scene = scene;
+    this.world = world;
     this.levels = new Map();
     
     // Initialize game state
@@ -36,8 +39,8 @@ export class LevelManager {
     console.log('🎮 Registering levels...');
     
     // Create level instances
-    const level1 = new Level1(this.scene);
-    const level2 = new Level2(this.scene);
+    const level1 = new Level1(this.scene, this.world);
+    const level2 = new Level2(this.scene, this.world);
     
     // Register them in the map
     this.levels.set(1, level1);

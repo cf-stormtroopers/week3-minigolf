@@ -1,11 +1,12 @@
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 import { Level, LevelConfig } from './Level';
 
 export class Level1 extends Level {
   private startPosition: THREE.Vector3;
   private goalPosition: THREE.Vector3;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, world: CANNON.World) {
     const config: LevelConfig = {
       levelNumber: 1,
       par: 3,
@@ -13,7 +14,7 @@ export class Level1 extends Level {
       description: "A simple straight shot to get you warmed up"
     };
     
-    super(scene, config);
+    super(scene, world, config);
     
     // Define positions for this level
     this.startPosition = new THREE.Vector3(0, 0.5, 5);
@@ -76,7 +77,7 @@ export class Level1 extends Level {
     return course;
   }
 
-  private createWoodenFrame(): void {
+  private createWoodenFrame(): THREE.Mesh[] {
     // Course dimensions: 10 wide x 15 long
     const courseWidth = 10;
     const courseLength = 15;
@@ -86,6 +87,8 @@ export class Level1 extends Level {
     // Create wooden material
     const woodMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 }); // Saddle brown
 
+    const frameObjects: THREE.Mesh[] = [];
+
     // Create the four frame pieces (walls)
     
     // Front wall (closer to camera, along width)
@@ -94,6 +97,7 @@ export class Level1 extends Level {
     frontWall.position.set(0, frameHeight / 2, courseLength / 2 + frameThickness / 2);
     frontWall.name = 'level1-frame-front';
     this.scene.add(frontWall);
+    frameObjects.push(frontWall);
 
     // Back wall (farther from camera, along width)
     const backWallGeometry = new THREE.BoxGeometry(courseWidth + frameThickness * 2, frameHeight, frameThickness);
@@ -101,6 +105,7 @@ export class Level1 extends Level {
     backWall.position.set(0, frameHeight / 2, -courseLength / 2 - frameThickness / 2);
     backWall.name = 'level1-frame-back';
     this.scene.add(backWall);
+    frameObjects.push(backWall);
 
     // Left wall (along length)
     const leftWallGeometry = new THREE.BoxGeometry(frameThickness, frameHeight, courseLength);
@@ -108,6 +113,7 @@ export class Level1 extends Level {
     leftWall.position.set(-courseWidth / 2 - frameThickness / 2, frameHeight / 2, 0);
     leftWall.name = 'level1-frame-left';
     this.scene.add(leftWall);
+    frameObjects.push(leftWall);
 
     // Right wall (along length)
     const rightWallGeometry = new THREE.BoxGeometry(frameThickness, frameHeight, courseLength);
@@ -115,8 +121,10 @@ export class Level1 extends Level {
     rightWall.position.set(courseWidth / 2 + frameThickness / 2, frameHeight / 2, 0);
     rightWall.name = 'level1-frame-right';
     this.scene.add(rightWall);
+    frameObjects.push(rightWall);
 
     console.log('✅ Wooden frame added to Level 1');
+    return frameObjects;
   }
 
   private createGolfHole(): void {
@@ -222,10 +230,19 @@ export class Level1 extends Level {
       this.createGolfHole();
 
       // Add wooden frame/border around the field
-      this.createWoodenFrame();
+      const frameObjects = this.createWoodenFrame();
+      
+      // Add physics collision for the course surface
+      this.createCoursePhysics();
+      
+      // Add physics collision for the wooden frame borders
+      frameObjects.forEach(frameObj => {
+        const collisionBody = this.createCollisionSurface(frameObj);
+        this.addPhysicsBody(collisionBody);
+      });
 
       this.setLoaded(true);
-      console.log(`✅ Level 1 loaded successfully!`);
+      console.log(`✅ Level 1 loaded successfully with physics!`);
       
     } catch (error) {
       console.error('Failed to load Level 1:', error);
@@ -267,5 +284,23 @@ export class Level1 extends Level {
   isGoalReached(ballPosition: THREE.Vector3): boolean {
     const distance = ballPosition.distanceTo(this.goalPosition);
     return distance < 0.4; // Ball needs to be within 0.4 units of the hole
+  }
+
+  private createCoursePhysics(): void {
+    // Create ground collision plane
+    const groundShape = new CANNON.Plane();
+    const groundBody = new CANNON.Body({ mass: 0 }); // Static body
+    groundBody.addShape(groundShape);
+    groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2); // Rotate to be horizontal
+    groundBody.position.set(0, 0, 0);
+    
+    // Add surface friction
+    groundBody.material = new CANNON.Material({
+      friction: 0.4,
+      restitution: 0.3
+    });
+    
+    this.addPhysicsBody(groundBody);
+    console.log('✅ Course physics (ground plane) added');
   }
 }

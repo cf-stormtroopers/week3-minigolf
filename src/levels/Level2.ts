@@ -1,11 +1,12 @@
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 import { Level, LevelConfig } from './Level';
 
 export class Level2 extends Level {
   private startPosition: THREE.Vector3;
   private goalPosition: THREE.Vector3;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, world: CANNON.World) {
     const config: LevelConfig = {
       levelNumber: 2,
       par: 4,
@@ -13,7 +14,7 @@ export class Level2 extends Level {
       description: "Navigate around a simple obstacle to reach the hole"
     };
     
-    super(scene, config);
+    super(scene, world, config);
     
     // Define positions for this level - more challenging layout
     this.startPosition = new THREE.Vector3(-4, 0.5, 4);
@@ -190,6 +191,10 @@ export class Level2 extends Level {
       obstacle.name = 'level2-obstacle';
       this.scene.add(obstacle);
 
+      // Add physics collision for obstacle
+      const obstacleBody = this.createCollisionSurface(obstacle);
+      this.addPhysicsBody(obstacleBody);
+
       // Add simple hole
       const hole = new THREE.Mesh(
         new THREE.CylinderGeometry(0.3, 0.3, 0.1, 8),
@@ -199,6 +204,9 @@ export class Level2 extends Level {
       hole.position.y = -0.05;
       hole.name = 'level2-hole';
       this.scene.add(hole);
+
+      // Add physics collision for the course surface
+      this.createCoursePhysics();
 
       this.setLoaded(true);
       console.log(`✅ Level 2 loaded successfully!`);
@@ -243,5 +251,23 @@ export class Level2 extends Level {
   isGoalReached(ballPosition: THREE.Vector3): boolean {
     const distance = ballPosition.distanceTo(this.goalPosition);
     return distance < 0.3;
+  }
+
+  private createCoursePhysics(): void {
+    // Create ground collision plane
+    const groundShape = new CANNON.Plane();
+    const groundBody = new CANNON.Body({ mass: 0 }); // Static body
+    groundBody.addShape(groundShape);
+    groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2); // Rotate to be horizontal
+    groundBody.position.set(0, 0, 0);
+    
+    // Add surface friction
+    groundBody.material = new CANNON.Material({
+      friction: 0.4,
+      restitution: 0.3
+    });
+    
+    this.addPhysicsBody(groundBody);
+    console.log('✅ Course physics (ground plane) added to Level 2');
   }
 }

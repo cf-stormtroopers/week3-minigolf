@@ -1,13 +1,19 @@
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LevelManager } from './levels/LevelManager';
+import { Ball } from './Ball';
+import { BallControls } from './BallControls';
 
 class MinigolfGame {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
   private renderer: THREE.WebGLRenderer;
-  private controls: OrbitControls;
+  private controls!: OrbitControls;
   private levelManager: LevelManager;
+  private world: CANNON.World;
+  private ball: Ball | null = null;
+  private ballControls: BallControls | null = null;
 
   constructor() {
     console.log('🎮 Initializing Minigolf Game...');
@@ -17,8 +23,13 @@ class MinigolfGame {
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     
-    // Initialize level manager
-    this.levelManager = new LevelManager(this.scene);
+    // Initialize physics world
+    this.world = new CANNON.World({
+      gravity: new CANNON.Vec3(0, -9.82, 0), // Earth gravity
+    });
+    
+    // Initialize level manager with physics world
+    this.levelManager = new LevelManager(this.scene, this.world);
     
     this.setupRenderer();
     this.setupLighting();
@@ -169,6 +180,18 @@ class MinigolfGame {
   private animate(): void {
     requestAnimationFrame(() => this.animate());
     
+    // Update physics world
+    this.world.step(1/60); // 60 FPS
+    
+    // Update ball physics if ball exists
+    if (this.ball) {
+      this.ball.update();
+      
+      // Make camera orbit around the ball by updating the target
+      const ballPosition = this.ball.getPosition();
+      this.controls.target.copy(ballPosition);
+    }
+    
     // Update controls for smooth camera movement
     this.controls.update();
     
@@ -186,11 +209,61 @@ class MinigolfGame {
     console.log('\n🎯 Loading initial level...');
     await this.levelManager.loadLevel(1);
     
+    // Create the golf ball
+    this.createBall();
+    
     // Start the render loop
     this.animate();
     
-    console.log('\n✅ Game started! Use keyboard controls to test the level system.');
+    console.log('\n✅ Game started! Click and drag to aim and shoot the ball.');
     console.log('🖱️  Use your mouse to look around the course!');
+  }
+
+  private createBall(): void {
+    if (this.ball) {
+      this.ball.dispose();
+      this.ballControls?.dispose();
+    }
+
+    const currentLevel = this.levelManager.getCurrentLevel();
+    if (currentLevel) {
+      const startPos = currentLevel.getStartPosition();
+      const goalPos = currentLevel.getGoalPosition();
+      
+      this.ball = new Ball(this.scene, this.world, startPos);
+      
+      // Set the hole position for collision detection
+      this.ball.setHolePosition(goalPos, 0.4);
+      
+      // Set up next level callback
+      this.ball.setNextLevelCallback(() => {
+        this.goToNextLevel();
+      });
+      
+      this.ballControls = new BallControls(
+        this.camera, 
+        this.renderer.domElement, 
+        this.ball, 
+        this.scene,
+        () => { this.controls.enabled = false; }, // Disable camera on aiming start
+        () => { this.controls.enabled = true; }   // Re-enable camera on aiming end
+      );
+      console.log('⛳ Golf ball created at starting position with hole at:', goalPos);
+    }
+  }
+
+  private async goToNextLevel(): Promise<void> {
+    // Try to load next level
+    const success = await this.levelManager.nextLevel();
+    if (success) {
+      console.log('🚀 Moving to next level');
+      this.createBall(); // Create ball at new level's start position
+    } else {
+      console.log('🎉 All levels completed! Congratulations!');
+      // For now, restart from level 1
+      await this.levelManager.loadLevel(1);
+      this.createBall();
+    }
   }
 }
 
