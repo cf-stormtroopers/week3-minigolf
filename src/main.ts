@@ -112,15 +112,17 @@ class MinigolfGame {
     });
   }
 
-  private handleKeyPress(event: KeyboardEvent): void {
+  private async handleKeyPress(event: KeyboardEvent): Promise<void> {
     switch (event.key) {
       case '1':
         console.log('\n🎯 Loading Level 1...');
-        this.levelManager.loadLevel(1);
+        await this.levelManager.loadLevel(1);
+        this.createBall(); // Reposition ball to new level's start
         break;
       case '2':
         console.log('\n🎯 Loading Level 2...');
-        this.levelManager.loadLevel(2);
+        await this.levelManager.loadLevel(2);
+        this.createBall(); // Reposition ball to new level's start
         break;
       case 'n':
       case 'N':
@@ -187,8 +189,15 @@ class MinigolfGame {
     if (this.ball) {
       this.ball.update();
       
-      // Make camera orbit around the ball by updating the target
+      // Check if level is completed
       const ballPosition = this.ball.getPosition();
+      const currentLevel = this.levelManager.getCurrentLevel();
+      if (currentLevel && currentLevel.isGoalReached(ballPosition)) {
+        // Trigger level completion
+        this.levelManager.completeLevel();
+      }
+      
+      // Make camera orbit around the ball by updating the target
       this.controls.target.copy(ballPosition);
     }
     

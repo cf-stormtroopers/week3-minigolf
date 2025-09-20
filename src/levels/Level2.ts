@@ -11,14 +11,16 @@ export class Level2 extends Level {
       levelNumber: 2,
       par: 4,
       name: "The Bend",
-      description: "Navigate around a simple obstacle to reach the hole"
+      description: "Navigate the L-shaped course with a banked turn"
     };
     
     super(scene, world, config);
     
-    // Define positions for this level - more challenging layout
-    this.startPosition = new THREE.Vector3(-4, 0.5, 4);
-    this.goalPosition = new THREE.Vector3(4, 0, -4);
+    // Define positions for this level - L-shaped layout
+    // Start position: top of the vertical leg (far from goal)
+    this.startPosition = new THREE.Vector3(-3, 0.5, 4);
+    // Goal position: bottom right of horizontal leg (far from start)
+    this.goalPosition = new THREE.Vector3(3, 0, -3);
   }
 
   private createCheckeredTexture(): THREE.Texture {
@@ -53,32 +55,67 @@ export class Level2 extends Level {
   }
 
   private createLShapedCourse(): void {
-    const checkeredTexture = this.createCheckeredTexture();
+    console.log('🚨 DEBUG: Creating L-shaped course for Level 2!');
     
-    // Create L-shape using two rectangles that DON'T overlap
-    // Vertical part of L (left side): 6 wide x 8 long (shorter to avoid overlap)
-    const verticalTexture = checkeredTexture.clone();
-    verticalTexture.repeat.set(1.5, 2); // Nice big squares
-    const verticalMaterial = new THREE.MeshLambertMaterial({ map: verticalTexture });
-    const verticalGeometry = new THREE.PlaneGeometry(6, 8);
-    const verticalPart = new THREE.Mesh(verticalGeometry, verticalMaterial);
-    verticalPart.rotation.x = -Math.PI / 2;
-    verticalPart.position.set(-3, 0, -2); // Moved up to avoid overlap
-    verticalPart.name = 'level2-course-vertical';
-    this.scene.add(verticalPart);
+    // Use RingGeometry like Level 1 to create actual hole - ball can fall through center
+    const innerRadius = 0.4; // Hole radius (same as Level 1)
+    const outerRadius = 20; // Course radius (should cover entire L area)
+    const thetaSegments = 64; // Smooth circle
+    
+    console.log('Creating course with hole using RingGeometry...');
+    
+    // Create ring geometry (this IS a real hole - ball can fall through center)
+    const courseGeometry = new THREE.RingGeometry(innerRadius, outerRadius, thetaSegments);
+    
+    // Create material and mesh
+    const checkeredTexture = this.createCheckeredTexture();
+    const courseMaterial = new THREE.MeshLambertMaterial({ map: checkeredTexture });
+    const course = new THREE.Mesh(courseGeometry, courseMaterial);
+    course.rotation.x = -Math.PI / 2;
+    course.position.copy(this.goalPosition);
+    course.position.y = 0; // Place on ground level
+    course.name = 'level2-course';
+    this.scene.add(course);
 
-    // Horizontal part of L (bottom): 12 wide x 6 long
-    const horizontalTexture = checkeredTexture.clone();
-    horizontalTexture.repeat.set(3, 1.5); // Nice big squares
-    const horizontalMaterial = new THREE.MeshLambertMaterial({ map: horizontalTexture });
-    const horizontalGeometry = new THREE.PlaneGeometry(12, 6);
-    const horizontalPart = new THREE.Mesh(horizontalGeometry, horizontalMaterial);
-    horizontalPart.rotation.x = -Math.PI / 2;
-    horizontalPart.position.set(0, 0, 3); // Bottom side
-    horizontalPart.name = 'level2-course-horizontal';
-    this.scene.add(horizontalPart);
+    console.log('✅ Course with hole created successfully');
+  }
 
-    console.log('✅ Clean L-shaped course created without overlaps');
+  private createBankedTurn(): void {
+    // 6. Diagonal element: (-3, -5) to (-5, -3) - the actual corner of the L!
+    
+    const frameHeight = 0.6;
+    const frameThickness = 0.6;
+    const woodMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
+    
+    // Calculate diagonal length from (-3, -5) to (-5, -3)
+    // Length = sqrt(((-5) - (-3))^2 + ((-3) - (-5))^2) = sqrt(4 + 4) = 2√2 ≈ 2.83
+    const diagonalLength = Math.sqrt(8); // 2√2
+    
+    const diagonalBorder = new THREE.Mesh(
+      new THREE.BoxGeometry(frameThickness, frameHeight, diagonalLength),
+      woodMaterial
+    );
+    
+    // Position at the center of the diagonal: midpoint of (-3, -5) and (-5, -3)
+    // Midpoint = ((-3 + -5)/2, (-5 + -3)/2) = (-4, -4)
+    diagonalBorder.position.set(-4, frameHeight/2, -4);
+    
+    // Rotate to align with the diagonal from (-3, -5) to (-5, -3)
+    // The vector is (-2, 2), which makes a 135° angle (or -45° from positive Z)
+    diagonalBorder.rotation.y = -Math.PI / 4; // -45° rotation
+    
+    diagonalBorder.name = 'level2-diagonal-border';
+    this.scene.add(diagonalBorder);
+    
+    // Add physics collision for the diagonal border
+    const diagonalBody = this.createCollisionSurface(diagonalBorder);
+    diagonalBody.material = new CANNON.Material({
+      friction: 0.4,
+      restitution: 0.8 // Good bounce for 45° shots
+    });
+    this.addPhysicsBody(diagonalBody);
+    
+    console.log('✅ Diagonal border positioned at actual L corner: (-3,-5) to (-5,-3)');
   }
 
   private createLShapedBorders(): void {
@@ -86,91 +123,80 @@ export class Level2 extends Level {
     const frameThickness = 0.6;
     const woodMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
 
-    // Course layout: 
-    // Vertical section: 6x8 at x=-3, z=-2 (extends from x=-6 to x=0, z=-6 to z=2)
-    // Horizontal section: 12x6 at x=0, z=3 (extends from x=-6 to x=6, z=0 to z=6)
+    const borders: THREE.Mesh[] = [];
 
-    // Vertical section borders
-    // Left border
-    const vLeft = new THREE.Mesh(
-      new THREE.BoxGeometry(frameThickness, frameHeight, 8 + frameThickness * 2),
+    // Following the exact 7-segment L-shape path:
+    // 1. Top border: (-5, 5) to (0, 5)
+    const topBorder = new THREE.Mesh(
+      new THREE.BoxGeometry(5, frameHeight, frameThickness),
       woodMaterial
     );
-    vLeft.position.set(-6 - frameThickness / 2, frameHeight / 2, -2);
-    vLeft.name = 'level2-border-v-left';
-    this.scene.add(vLeft);
+    topBorder.position.set(-2.5, frameHeight/2, 5 + frameThickness/2); // Center at x=-2.5, z=5
+    topBorder.name = 'level2-border-top';
+    borders.push(topBorder);
 
-    // Top border
-    const vTop = new THREE.Mesh(
-      new THREE.BoxGeometry(6 + frameThickness * 2, frameHeight, frameThickness),
+    // 2. Inner vertical border: (0, 5) to (0, 0)
+    const innerVerticalBorder = new THREE.Mesh(
+      new THREE.BoxGeometry(frameThickness, frameHeight, 5),
       woodMaterial
     );
-    vTop.position.set(-3, frameHeight / 2, -6 - frameThickness / 2);
-    vTop.name = 'level2-border-v-top';
-    this.scene.add(vTop);
+    innerVerticalBorder.position.set(0 + frameThickness/2, frameHeight/2, 2.5); // Center at x=0, z=2.5
+    innerVerticalBorder.name = 'level2-border-inner-vertical';
+    borders.push(innerVerticalBorder);
 
-    // Right border (full height)
-    const vRight = new THREE.Mesh(
-      new THREE.BoxGeometry(frameThickness, frameHeight, 8 + frameThickness * 2),
+    // 3. Inner horizontal border: (0, 0) to (5, 0)
+    const innerHorizontalBorder = new THREE.Mesh(
+      new THREE.BoxGeometry(5, frameHeight, frameThickness),
       woodMaterial
     );
-    vRight.position.set(0 - frameThickness / 2, frameHeight / 2, -2);
-    vRight.name = 'level2-border-v-right';
-    this.scene.add(vRight);
+    innerHorizontalBorder.position.set(2.5, frameHeight/2, 0 - frameThickness/2); // Center at x=2.5, z=0
+    innerHorizontalBorder.name = 'level2-border-inner-horizontal';
+    borders.push(innerHorizontalBorder);
 
-    // Horizontal section borders
-    // Right border
-    const hRight = new THREE.Mesh(
-      new THREE.BoxGeometry(frameThickness, frameHeight, 6 + frameThickness * 2),
+    // 4. Right border: (5, 0) to (5, -5)
+    const rightBorder = new THREE.Mesh(
+      new THREE.BoxGeometry(frameThickness, frameHeight, 5),
       woodMaterial
     );
-    hRight.position.set(6 + frameThickness / 2, frameHeight / 2, 3);
-    hRight.name = 'level2-border-h-right';
-    this.scene.add(hRight);
+    rightBorder.position.set(5 + frameThickness/2, frameHeight/2, -2.5); // Center at x=5, z=-2.5
+    rightBorder.name = 'level2-border-right';
+    borders.push(rightBorder);
 
-    // Bottom border
-    const hBottom = new THREE.Mesh(
-      new THREE.BoxGeometry(12 + frameThickness * 2, frameHeight, frameThickness),
+    // 5. Bottom border: (5, -5) to (-3, -5)
+    const bottomBorder = new THREE.Mesh(
+      new THREE.BoxGeometry(8, frameHeight, frameThickness),
       woodMaterial
     );
-    hBottom.position.set(0, frameHeight / 2, 6 + frameThickness / 2);
-    hBottom.name = 'level2-border-h-bottom';
-    this.scene.add(hBottom);
+    bottomBorder.position.set(1, frameHeight/2, -5 - frameThickness/2); // Center at x=1, z=-5
+    bottomBorder.name = 'level2-border-bottom';
+    borders.push(bottomBorder);
 
-    // Top border (connects to vertical section)
-    const hTop = new THREE.Mesh(
-      new THREE.BoxGeometry(12 + frameThickness * 2, frameHeight, frameThickness),
+    // 7. Left border: (-5, -3) to (-5, 5)
+    const leftBorder = new THREE.Mesh(
+      new THREE.BoxGeometry(frameThickness, frameHeight, 8),
       woodMaterial
     );
-    hTop.position.set(0, frameHeight / 2, 0 - frameThickness / 2);
-    hTop.name = 'level2-border-h-top';
-    this.scene.add(hTop);
+    leftBorder.position.set(-5 - frameThickness/2, frameHeight/2, 1); // Center at x=-5, z=1
+    leftBorder.name = 'level2-border-left';
+    borders.push(leftBorder);
 
-    // Left border (connects to vertical section)
-    const hLeft = new THREE.Mesh(
-      new THREE.BoxGeometry(frameThickness, frameHeight, 6 + frameThickness * 2),
-      woodMaterial
-    );
-    hLeft.position.set(-6 - frameThickness / 2, frameHeight / 2, 3);
-    hLeft.name = 'level2-border-h-left';
-    this.scene.add(hLeft);
+    // Add all borders to scene and create physics
+    borders.forEach(border => {
+      this.scene.add(border);
+      const borderBody = this.createCollisionSurface(border);
+      this.addPhysicsBody(borderBody);
+    });
 
-    // Bottom border of vertical section (connects to horizontal)
-    const vBottom = new THREE.Mesh(
-      new THREE.BoxGeometry(6 + frameThickness * 2, frameHeight, frameThickness),
-      woodMaterial
-    );
-    vBottom.position.set(-3, frameHeight / 2, 2 + frameThickness / 2);
-    vBottom.name = 'level2-border-v-bottom';
-    this.scene.add(vBottom);
-
-    console.log('✅ Fixed L-shaped borders for non-overlapping course');
+    console.log('✅ L-shaped borders created with exact 7-segment path');
   }
 
   async load(): Promise<void> {
+    console.log('🚨 DEBUG: LEVEL 2 LOAD METHOD CALLED!');
     console.log(`Loading ${this.name} (Level ${this.levelNumber})`);
     console.log(`Description: ${this.description}`);
     console.log(`Par: ${this.par}`);
+    console.log(`Start position: ${this.startPosition.x}, ${this.startPosition.y}, ${this.startPosition.z}`);
+    console.log(`Goal position: ${this.goalPosition.x}, ${this.goalPosition.y}, ${this.goalPosition.z}`);
     
     try {
       // Simulate some loading time
@@ -182,28 +208,11 @@ export class Level2 extends Level {
       // Create borders
       this.createLShapedBorders();
 
-      // Add simple obstacle
-      const obstacle = new THREE.Mesh(
-        new THREE.BoxGeometry(1, 0.8, 1),
-        new THREE.MeshLambertMaterial({ color: 0x8b4513 })
-      );
-      obstacle.position.set(-1, 0.4, 1);
-      obstacle.name = 'level2-obstacle';
-      this.scene.add(obstacle);
+      // Create diagonal border at corner
+      this.createBankedTurn();
 
-      // Add physics collision for obstacle
-      const obstacleBody = this.createCollisionSurface(obstacle);
-      this.addPhysicsBody(obstacleBody);
-
-      // Add simple hole
-      const hole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.3, 0.3, 0.1, 8),
-        new THREE.MeshLambertMaterial({ color: 0x000000 })
-      );
-      hole.position.copy(this.goalPosition);
-      hole.position.y = -0.05;
-      hole.name = 'level2-hole';
-      this.scene.add(hole);
+      // Create golf hole
+      this.createGolfHole();
 
       // Add physics collision for the course surface
       this.createCoursePhysics();
@@ -215,6 +224,92 @@ export class Level2 extends Level {
       console.error('Failed to load Level 2:', error);
       throw error;
     }
+  }
+
+  private createGolfHole(): void {
+    const holeRadius = 0.4; // Same as Level 1
+    const holeDepth = 0.5;  // Same as Level 1
+    
+    console.log(`Creating hole at position: ${this.goalPosition.x}, ${this.goalPosition.y}, ${this.goalPosition.z}`);
+    
+    // Create a white cylindrical wall for the hole sides
+    const holeWallGeometry = new THREE.CylinderGeometry(holeRadius, holeRadius, holeDepth, 16, 1, true);
+    const holeWallMaterial = new THREE.MeshLambertMaterial({ 
+      color: 0xffffff, // White walls
+      side: THREE.DoubleSide 
+    });
+    const holeWall = new THREE.Mesh(holeWallGeometry, holeWallMaterial);
+    holeWall.position.copy(this.goalPosition);
+    holeWall.position.y = -holeDepth / 2; // Center the cylinder so top is at ground level
+    holeWall.name = 'level2-hole-wall';
+    this.scene.add(holeWall);
+
+    // Create a much more visible white ring at ground level
+    const holeRingGeometry = new THREE.RingGeometry(holeRadius, holeRadius + 0.1, 16);
+    const holeRingMaterial = new THREE.MeshLambertMaterial({ 
+      color: 0xffffff,
+      side: THREE.DoubleSide 
+    });
+    const holeRing = new THREE.Mesh(holeRingGeometry, holeRingMaterial);
+    holeRing.position.copy(this.goalPosition);
+    holeRing.position.y = 0.02; // Slightly above ground level
+    holeRing.rotation.x = -Math.PI / 2; // Rotate to lie flat
+    holeRing.name = 'level2-hole-ring';
+    this.scene.add(holeRing);
+
+    // Create dark bottom of the hole - larger and more visible
+    const holeBottomGeometry = new THREE.CircleGeometry(holeRadius * 0.9, 16);
+    const holeBottomMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 }); // Pure black for contrast
+    const holeBottom = new THREE.Mesh(holeBottomGeometry, holeBottomMaterial);
+    holeBottom.position.copy(this.goalPosition);
+    holeBottom.position.y = -holeDepth + 0.01; // At the bottom of the hole
+    holeBottom.rotation.x = -Math.PI / 2; // Rotate to lie flat
+    holeBottom.name = 'level2-hole-bottom';
+    this.scene.add(holeBottom);
+
+    // Create flag pole
+    const poleGeometry = new THREE.CylinderGeometry(0.02, 0.02, 2, 8);
+    const poleMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 }); // Dark gray pole
+    const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+    pole.position.copy(this.goalPosition);
+    pole.position.x += holeRadius + 0.1; // Position slightly outside the hole
+    pole.position.y = 1; // Half the pole height above ground
+    pole.name = 'level2-flag-pole';
+    this.scene.add(pole);
+
+    // Create flag
+    const flagGeometry = new THREE.PlaneGeometry(0.4, 0.3);
+    const flagMaterial = new THREE.MeshLambertMaterial({ 
+      color: 0xff0000, // Red flag
+      side: THREE.DoubleSide 
+    });
+    const flag = new THREE.Mesh(flagGeometry, flagMaterial);
+    flag.position.copy(pole.position);
+    flag.position.x += 0.2; // Offset from pole
+    flag.position.y += 0.5; // Position in upper part of pole
+    flag.name = 'level2-flag';
+    this.scene.add(flag);
+
+    // Add flag number
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#ff0000';
+    context.fillRect(0, 0, 128, 128);
+    context.fillStyle = '#ffffff';
+    context.font = 'bold 80px Arial';
+    context.textAlign = 'center';
+    context.fillText('2', 64, 80);
+    
+    const flagTexture = new THREE.CanvasTexture(canvas);
+    const flagNumberMaterial = new THREE.MeshLambertMaterial({ 
+      map: flagTexture,
+      side: THREE.DoubleSide 
+    });
+    flag.material = flagNumberMaterial;
+
+    console.log('✅ Golf hole with flag 2 added to Level 2 (copied from Level 1)');
   }
 
   unload(): void {
@@ -250,7 +345,11 @@ export class Level2 extends Level {
 
   isGoalReached(ballPosition: THREE.Vector3): boolean {
     const distance = ballPosition.distanceTo(this.goalPosition);
-    return distance < 0.3;
+    const isReached = distance < 0.4;
+    if (isReached) {
+      console.log('🚨 DEBUG: Goal reached! Ball distance to goal:', distance);
+    }
+    return isReached; // Same as Level 1
   }
 
   private createCoursePhysics(): void {
