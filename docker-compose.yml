@@ -1,0 +1,6 @@
+services:
+  minigolf-game:
+    build: .
+    ports:
+      - "8243:8243"
+    container_name: minigolf-game
